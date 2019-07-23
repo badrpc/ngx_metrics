@@ -23,14 +23,14 @@ var (
 	// TODO(badrpc): all of these should probably go into labels of request
 	// related metrics:
 	//
-    // AncientBrowser
+	// AncientBrowser
 	// Host
-    // Pipe
-    // RemoteUser
-    // RequestCompletion
+	// Pipe
+	// RemoteUser
+	// RequestCompletion
 	// Scheme
-    // ServerName
-    // ServerProtocol
+	// ServerName
+	// ServerProtocol
 	// Status
 
 	httpBodyBytesSent = prometheus.NewCounterVec(
@@ -87,16 +87,16 @@ var (
 	)
 	httpRequestLength = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "http_request_length_bytes",
-			Help:    "Request length histogram.",
+			Name: "http_request_length_bytes",
+			Help: "Request length histogram.",
 			// TODO(badrpc): make buckets configurable via command line flag.
 			Buckets: []float64{32.0, 64.0, 96.0, 128.0, 256.0, 512.0, 1024.0},
 		},
 	)
 	httpRequestDuration = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "http_request_duration_seconds",
-			Help:    "Request duration historgram.",
+			Name: "http_request_duration_seconds",
+			Help: "Request duration historgram.",
 			// TODO(badrpc): make buckets configurable via command line flag.
 			Buckets: []float64{0.025, 0.050, 0.100, 0.250, 0.500, 1.000, 2.000, 5.000},
 		},
@@ -104,22 +104,22 @@ var (
 )
 
 type logRecord struct {
-    AncientBrowser     string
+	AncientBrowser     string
 	BodyBytesSent      int
 	BytesSent          int
 	ConnectionsActive  int
-    ConnectionsReading int
-    ConnectionsWaiting int
-    ConnectionsWriting int
+	ConnectionsReading int
+	ConnectionsWaiting int
+	ConnectionsWriting int
 	Host               string
-    Pipe               string
-    RemoteUser         string
-    RequestCompletion  string
+	Pipe               string
+	RemoteUser         string
+	RequestCompletion  string
 	RequestLength      int
 	RequestTime        float64
 	Scheme             string
-    ServerName         string
-    ServerProtocol     string
+	ServerName         string
+	ServerProtocol     string
 	Status             string
 }
 
