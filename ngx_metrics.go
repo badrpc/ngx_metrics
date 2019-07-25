@@ -162,10 +162,11 @@ func parseAddr(addrSpec string) (family, addr string) {
 }
 
 func main() {
-	var webListenAddr, syslogListenAddr string
+	var syslogListenAddr, webListenAddr, webTelemetryPath string
 
-	flag.StringVar(&webListenAddr, "web.listen-address", ":9998", "Address to listen on for HTTP requests.")
 	flag.StringVar(&syslogListenAddr, "syslog.listen-address", "127.0.0.1:9999", "Address to listen on for syslog packets.")
+	flag.StringVar(&webListenAddr, "web.listen-address", ":9998", "Address to listen on for HTTP requests.")
+	flag.StringVar(&webTelemetryPath, "web.telemetry-path", "/metrics", "Path to expose metrics.")
 
 	flag.Parse()
 
@@ -218,7 +219,7 @@ func main() {
 		}
 	}(channel)
 
-	http.Handle("/metrics", promhttp.Handler())
+	http.Handle(webTelemetryPath, promhttp.Handler())
 	log.Print(http.ListenAndServe(webListenAddr, nil))
 	// TODO(badrpc): handle exit from http.ListenAndServe(). End process?
 
