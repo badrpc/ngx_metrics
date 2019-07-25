@@ -1,23 +1,34 @@
+// Copyright 2019 Oleg Sharoyko
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // ngx_metrics collects nginx performance metrics via syslog feed from nginx
 // and makes them available for prometheus to scrape.
 package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/mcuadros/go-syslog.v2"
 )
 
-// TODO(badrpc):
-//  * flags for syslog and http protocol endpoints
-//		web.listen-address
-//		syslog.listen-address
-//  * syslog
-//  * daemonize or let the OS manage this?
+// TODO(badrpc): allow arbitrary labels directly from syslog message.
 
 var (
 	// TODO(badrpc): all of these should probably go into labels of request
@@ -32,7 +43,6 @@ var (
 	// ServerName
 	// ServerProtocol
 	// Status
-
 	httpBodyBytesSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_body_bytes_sent_total",
@@ -142,7 +152,23 @@ func processMessage(s string) {
 	httpRequests.With(requestLables).Inc()
 }
 
+func parseAddr(addrSpec string) (family, addr string) {
+	addr = addrSpec
+	if i := strings.Index(addrSpec, "|"); i > 0 {
+		family = addrSpec[:i]
+		addr = addrSpec[i+1:]
+	}
+	return family, addr
+}
+
 func main() {
+	var webListenAddr, syslogListenAddr string
+
+	flag.StringVar(&webListenAddr, "web.listen-address", ":9998", "Address to listen on for HTTP requests.")
+	flag.StringVar(&syslogListenAddr, "syslog.listen-address", "127.0.0.1:9999", "Address to listen on for syslog packets.")
+
+	flag.Parse()
+
 	prometheus.MustRegister(httpBodyBytesSent)
 	prometheus.MustRegister(httpBytesRecieved)
 	prometheus.MustRegister(httpBytesSent)
@@ -154,17 +180,30 @@ func main() {
 	prometheus.MustRegister(httpRequestLength)
 	prometheus.MustRegister(httpRequests)
 
-	// flag.Parse()
-
 	channel := make(syslog.LogPartsChannel)
 	handler := syslog.NewChannelHandler(channel)
 
 	server := syslog.NewServer()
 	server.SetFormat(syslog.Automatic)
 	server.SetHandler(handler)
-	server.ListenUDP("0.0.0.0:9514")
+	var err error
+	switch f, a := parseAddr(syslogListenAddr); f {
+	case "tcp":
+		err = server.ListenTCP(a)
+	case "unix", "unixgram", "unixpacket":
+		err = server.ListenUnixgram(a)
+	case "udp":
+		err = server.ListenUDP(a)
+	default:
+		err = server.ListenUDP(syslogListenAddr)
+	}
+	if err != nil {
+		log.Fatal("Cannot listen for syslog packets on ", syslogListenAddr, ": ", err)
+	}
 
-	server.Boot()
+	if err := server.Boot(); err != nil {
+		log.Fatal("Cannot start syslog server: ", err)
+	}
 
 	go func(channel syslog.LogPartsChannel) {
 		// TODO(badrpc): handle channel closure. End process?
@@ -180,7 +219,7 @@ func main() {
 	}(channel)
 
 	http.Handle("/metrics", promhttp.Handler())
-	log.Print(http.ListenAndServe(":9516", nil))
+	log.Print(http.ListenAndServe(webListenAddr, nil))
 	// TODO(badrpc): handle exit from http.ListenAndServe(). End process?
 
 	server.Wait()
