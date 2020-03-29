@@ -1,4 +1,4 @@
-module badrpc/ngx_metrics
+module github.com/badrpc/ngx_metrics
 
 go 1.12
 
